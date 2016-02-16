@@ -8,7 +8,7 @@ from flask.ext.admin._compat import with_metaclass
 from flask.ext.admin import helpers as h
 
 # For compatibility reasons import MenuLink
-from flask.ext.admin.menu import MenuCategory, MenuView, MenuLink
+from flask.ext.admin.menu import MenuCategory, MenuView, MenuLink, SubMenuCategory
 
 
 def expose(url='/', methods=('GET',)):
