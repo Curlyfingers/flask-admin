@@ -6,11 +6,11 @@ from bson.errors import InvalidId
 
 from flask import flash
 
-from flask.ext.admin._compat import string_types
-from flask.ext.admin.babel import gettext, ngettext, lazy_gettext
-from flask.ext.admin.model import BaseModelView
-from flask.ext.admin.actions import action
-from flask.ext.admin.helpers import get_form_data
+from flask_admin._compat import string_types
+from flask_admin.babel import gettext, ngettext, lazy_gettext
+from flask_admin.model import BaseModelView
+from flask_admin.actions import action
+from flask_admin.helpers import get_form_data
 
 from .filters import BasePyMongoFilter
 from .tools import parse_like_term
@@ -29,13 +29,38 @@ class ModelView(BaseModelView):
         Collection of the column filters.
 
         Should contain instances of
-        :class:`flask.ext.admin.contrib.pymongo.filters.BasePyMongoFilter`
-        classes.
+        :class:`flask_admin.contrib.pymongo.filters.BasePyMongoFilter` classes.
+
+        Filters will be grouped by name when displayed in the drop-down.
 
         For example::
 
+            from flask_admin.contrib.pymongo.filters import BooleanEqualFilter
+
             class MyModelView(BaseModelView):
-                column_filters = (BooleanEqualFilter(User.name, 'Name'),)
+                column_filters = (BooleanEqualFilter(column=User.name, name='Name'),)
+
+        or::
+
+            from flask_admin.contrib.pymongo.filters import BasePyMongoFilter
+
+            class FilterLastNameBrown(BasePyMongoFilter):
+                def apply(self, query, value):
+                    if value == '1':
+                        return query.filter(self.column == "Brown")
+                    else:
+                        return query.filter(self.column != "Brown")
+
+                def operation(self):
+                    return 'is Brown'
+
+            class MyModelView(BaseModelView):
+                column_filters = [
+                    FilterLastNameBrown(
+                        column=User.last_name, name='Last Name',
+                        options=(('1', 'Yes'), ('0', 'No'))
+                    )
+                ]
     """
 
     def __init__(self, coll,
@@ -59,9 +84,10 @@ class ModelView(BaseModelView):
             :param menu_icon_type:
                 Optional icon. Possible icon types:
 
-                 - `flask.ext.admin.consts.ICON_TYPE_GLYPH` - Bootstrap glyph icon
-                 - `flask.ext.admin.consts.ICON_TYPE_IMAGE` - Image relative to Flask static directory
-                 - `flask.ext.admin.consts.ICON_TYPE_IMAGE_URL` - Image with full URL
+                 - `flask_admin.consts.ICON_TYPE_GLYPH` - Bootstrap glyph icon
+                 - `flask_admin.consts.ICON_TYPE_FONT_AWESOME` - Font Awesome icon
+                 - `flask_admin.consts.ICON_TYPE_IMAGE` - Image relative to Flask static directory
+                 - `flask_admin.consts.ICON_TYPE_IMAGE_URL` - Image with full URL
             :param menu_icon_value:
                 Icon glyph name or URL, depending on `menu_icon_type` setting
         """
@@ -183,7 +209,7 @@ class ModelView(BaseModelView):
         return query
 
     def get_list(self, page, sort_column, sort_desc, search, filters,
-                 execute=True):
+                 execute=True, page_size=None):
         """
             Get list of objects from MongoEngine
 
@@ -199,6 +225,10 @@ class ModelView(BaseModelView):
                 List of applied fiters
             :param execute:
                 Run query immediately or not
+            :param page_size:
+                Number of results. Defaults to ModelView's page_size. Can be
+                overriden to change the page_size limit. Removing the page_size
+                limit requires setting page_size to 0 or False.
         """
         query = {}
 
@@ -221,7 +251,7 @@ class ModelView(BaseModelView):
             query = self._search(query, search)
 
         # Get count
-        count = self.coll.find(query).count()
+        count = self.coll.find(query).count() if not self.simple_list_pager else None
 
         # Sorting
         sort_by = None
@@ -235,12 +265,15 @@ class ModelView(BaseModelView):
                 sort_by = [(order[0], pymongo.DESCENDING if order[1] else pymongo.ASCENDING)]
 
         # Pagination
-        skip = None
+        if page_size is None:
+            page_size = self.page_size
 
-        if page is not None:
-            skip = page * self.page_size
+        skip = 0
 
-        results = self.coll.find(query, sort=sort_by, skip=skip, limit=self.page_size)
+        if page and page_size:
+            skip = page * page_size
+
+        results = self.coll.find(query, sort=sort_by, skip=skip, limit=page_size)
 
         if execute:
             results = list(results)
@@ -287,7 +320,7 @@ class ModelView(BaseModelView):
         else:
             self.after_model_change(form, model, True)
 
-        return True
+        return model
 
     def update_model(self, form, model):
         """
@@ -329,12 +362,15 @@ class ModelView(BaseModelView):
 
             self.on_model_delete(model)
             self.coll.remove({'_id': pk})
-            return True
         except Exception as ex:
             flash(gettext('Failed to delete record. %(error)s', error=str(ex)),
                   'error')
             log.exception('Failed to delete record.')
             return False
+        else:
+            self.after_model_delete(model)
+
+        return True
 
     # Default model actions
     def is_action_allowed(self, name):

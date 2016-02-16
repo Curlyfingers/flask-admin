@@ -2,8 +2,8 @@ import time
 import datetime
 
 from wtforms import fields, widgets
-from flask.ext.admin.babel import gettext
-from flask.ext.admin._compat import text_type, as_unicode
+from flask_admin.babel import gettext
+from flask_admin._compat import text_type, as_unicode
 
 from . import widgets as admin_widgets
 
@@ -12,6 +12,7 @@ An understanding of WTForms's Custom Widgets is helpful for understanding this c
 """
 
 __all__ = ['DateTimeField', 'TimeField', 'Select2Field', 'Select2TagsField']
+
 
 class DateTimeField(fields.DateTimeField):
     """
@@ -34,6 +35,7 @@ class DateTimeField(fields.DateTimeField):
         super(DateTimeField, self).__init__(label, validators, **kwargs)
 
         self.format = format or '%Y-%m-%d %H:%M:%S'
+
 
 class TimeField(fields.Field):
     """

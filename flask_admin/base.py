@@ -3,12 +3,12 @@ import os.path as op
 from functools import wraps
 
 from flask import Blueprint, current_app, render_template, abort, g, url_for
-from flask.ext.admin import babel
-from flask.ext.admin._compat import with_metaclass
-from flask.ext.admin import helpers as h
+from flask_admin import babel
+from flask_admin._compat import with_metaclass, as_unicode
+from flask_admin import helpers as h
 
 # For compatibility reasons import MenuLink
-from flask.ext.admin.menu import MenuCategory, MenuView, MenuLink, SubMenuCategory
+from flask_admin.menu import MenuCategory, MenuView, MenuLink, SubMenuCategory
 
 
 def expose(url='/', methods=('GET',)):
@@ -111,7 +111,7 @@ class BaseView(with_metaclass(AdminViewMeta, BaseViewClass)):
 
         Derive from this class to implement your administrative interface piece. For example::
 
-            from flask.ext.admin import BaseView, expose
+            from flask_admin import BaseView, expose
             class MyView(BaseView):
                 @expose('/')
                 def index(self):
@@ -179,9 +179,10 @@ class BaseView(with_metaclass(AdminViewMeta, BaseViewClass)):
             :param menu_icon_type:
                 Optional icon. Possible icon types:
 
-                 - `flask.ext.admin.consts.ICON_TYPE_GLYPH` - Bootstrap glyph icon
-                 - `flask.ext.admin.consts.ICON_TYPE_IMAGE` - Image relative to Flask static directory
-                 - `flask.ext.admin.consts.ICON_TYPE_IMAGE_URL` - Image with full URL
+                 - `flask_admin.consts.ICON_TYPE_GLYPH` - Bootstrap glyph icon
+                 - `flask_admin.consts.ICON_TYPE_FONT_AWESOME` - Font Awesome icon
+                 - `flask_admin.consts.ICON_TYPE_IMAGE` - Image relative to Flask static directory
+                 - `flask_admin.consts.ICON_TYPE_IMAGE_URL` - Image with full URL
             :param menu_icon_value:
                 Icon glyph name or URL, depending on `menu_icon_type` setting
         """
@@ -215,6 +216,24 @@ class BaseView(with_metaclass(AdminViewMeta, BaseViewClass)):
 
         return self.__class__.__name__.lower()
 
+    def _get_view_url(self, admin, url):
+        """
+            Generate URL for the view. Override to change default behavior.
+        """
+        if url is None:
+            if admin.url != '/':
+                url = '%s/%s' % (admin.url, self.endpoint)
+            else:
+                if self == admin.index_view:
+                    url = '/'
+                else:
+                    url = '/%s' % self.endpoint
+        else:
+            if not url.startswith('/'):
+                url = '%s/%s' % (admin.url, url)
+
+        return url
+
     def create_blueprint(self, admin):
         """
             Create Flask blueprint.
@@ -226,18 +245,8 @@ class BaseView(with_metaclass(AdminViewMeta, BaseViewClass)):
         if not self.static_url_path:
             self.static_url_path = admin.static_url_path
 
-        # If url is not provided, generate it from endpoint name
-        if self.url is None:
-            if self.admin.url != '/':
-                self.url = '%s/%s' % (self.admin.url, self.endpoint)
-            else:
-                if self == admin.index_view:
-                    self.url = '/'
-                else:
-                    self.url = '/%s' % self.endpoint
-        else:
-            if not self.url.startswith('/'):
-                self.url = '%s/%s' % (self.admin.url, self.url)
+        # Generate URL
+        self.url = self._get_view_url(admin, self.url)
 
         # If we're working from the root of the site, set prefix to None
         if self.url == '/':
@@ -453,7 +462,8 @@ class Admin(object):
                  endpoint=None,
                  static_url_path=None,
                  base_template=None,
-                 template_mode=None):
+                 template_mode=None,
+                 category_icon_classes=None):
         """
             Constructor.
 
@@ -481,6 +491,9 @@ class Admin(object):
             :param template_mode:
                 Base template path. Defaults to `bootstrap2`. If you want to use
                 Bootstrap 3 integration, change it to `bootstrap3`.
+            :param category_icon_classes:
+                A dict of category names as keys and html classes as values to be added to menu category icons.
+                Example: {'Favorites': 'glyphicon glyphicon-star'}
         """
         self.app = app
 
@@ -502,6 +515,7 @@ class Admin(object):
         self.subdomain = subdomain
         self.base_template = base_template or 'admin/base.html'
         self.template_mode = template_mode or 'bootstrap2'
+        self.category_icon_classes = category_icon_classes or dict()
 
         # Add predefined index view
         self.add_view(self.index_view)
@@ -526,6 +540,50 @@ class Admin(object):
 
         self._add_view_to_menu(view)
 
+    def add_views(self, *args):
+        """
+            Add one or more views to the collection.
+
+            Examples::
+
+                admin.add_views(view1)
+                admin.add_views(view1, view2, view3, view4)
+                admin.add_views(*my_list)
+
+            :param args:
+                Argument list including the views to add.
+        """
+        for view in args:
+            self.add_view(view)
+
+    def add_link(self, link):
+        """
+            Add link to menu links collection.
+
+            :param link:
+                Link to add.
+        """
+        if link.category:
+            self._add_menu_item(link, link.category)
+        else:
+            self._menu_links.append(link)
+
+    def add_links(self, *args):
+        """
+            Add one or more links to the menu links collection.
+
+            Examples::
+
+                admin.add_links(link1)
+                admin.add_links(link1, link2, link3, link4)
+                admin.add_links(*my_list)
+
+            :param args:
+                Argument list including the links to add.
+        """
+        for link in args:
+            self.add_link(link)
+
     def add_sub_category(self, name, parent_name):
 
         """
@@ -545,31 +603,17 @@ class Admin(object):
             self._menu_categories[name] = category
             parent.add_child(category)
 
-    def add_link(self, link):
-        """
-            Add link to menu links collection.
-
-            :param link:
-                Link to add.
-        """
-        if link.category:
-            self._add_menu_item(link, link.category)
-        else:
-            self._menu_links.append(link)
-
     def _add_menu_item(self, menu_item, target_category):
-        """
-            Add a view to the menu tree
-
-            :param view:
-                View to add
-        """
         if target_category:
-            category = self._menu_categories.get(target_category)
+            cat_text = as_unicode(target_category)
 
+            category = self._menu_categories.get(cat_text)
+
+            # create a new menu category if one does not exist already
             if category is None:
                 category = MenuCategory(target_category)
-                self._menu_categories[target_category] = category
+                category.class_name = self.category_icon_classes.get(cat_text)
+                self._menu_categories[cat_text] = category
 
                 self._menu.append(category)
 
@@ -578,6 +622,12 @@ class Admin(object):
             self._menu.append(menu_item)
 
     def _add_view_to_menu(self, view):
+        """
+            Add a view to the menu tree
+
+            :param view:
+                View to add
+        """
         self._add_menu_item(MenuView(view.name, view), view.category)
 
     def get_category_menu_item(self, name):

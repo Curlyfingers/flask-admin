@@ -1,8 +1,7 @@
 import time
 import datetime
 
-from flask.ext.admin._compat import text_type
-from flask.ext.admin.babel import lazy_gettext
+from flask_admin.babel import lazy_gettext
 
 
 class BaseFilter(object):
@@ -39,7 +38,7 @@ class BaseFilter(object):
             if callable(options):
                 options = options()
 
-            return [(v, text_type(n)) for v, n in options]
+            return options
 
         return None
 
@@ -107,9 +106,12 @@ class BaseBooleanFilter(BaseFilter):
 class BaseIntFilter(BaseFilter):
     """
         Base Int filter. Adds validation and changes value to python int.
+
+        Avoid using int(float(value)) to also allow using decimals, because it
+        causes precision issues with large numbers.
     """
     def clean(self, value):
-        return int(float(value))
+        return int(value)
 
 
 class BaseFloatFilter(BaseFilter):
@@ -123,9 +125,12 @@ class BaseFloatFilter(BaseFilter):
 class BaseIntListFilter(BaseFilter):
     """
         Base Integer list filter. Adds validation for int "In List" filter.
+
+        Avoid using int(float(value)) to also allow using decimals, because it
+        causes precision issues with large numbers.
     """
     def clean(self, value):
-        return [int(float(v.strip())) for v in value.split(',') if v.strip()]
+        return [int(v.strip()) for v in value.split(',') if v.strip()]
 
 
 class BaseFloatListFilter(BaseFilter):
@@ -263,10 +268,10 @@ def convert(*args):
     """
         Decorator for field to filter conversion routine.
 
-        See :mod:`flask.ext.admin.contrib.sqla.filters` for usage example.
+        See :mod:`flask_admin.contrib.sqla.filters` for usage example.
     """
     def _inner(func):
-        func._converter_for = list(map(str.lower, args))
+        func._converter_for = list(map(lambda x: x.lower(), args))
         return func
     return _inner
 

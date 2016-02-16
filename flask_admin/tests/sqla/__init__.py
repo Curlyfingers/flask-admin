@@ -1,6 +1,6 @@
 from flask import Flask
-from flask.ext.admin import Admin
-from flask.ext.sqlalchemy import SQLAlchemy
+from flask_admin import Admin
+from flask_sqlalchemy import SQLAlchemy
 
 
 def setup():
@@ -8,6 +8,18 @@ def setup():
     app.config['SECRET_KEY'] = '1'
     app.config['CSRF_ENABLED'] = False
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///'
+    app.config['SQLALCHEMY_ECHO'] = True
+
+    db = SQLAlchemy(app)
+    admin = Admin(app)
+
+    return app, db, admin
+
+def setup_postgres():
+    app = Flask(__name__)
+    app.config['SECRET_KEY'] = '1'
+    app.config['CSRF_ENABLED'] = False
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://localhost/flask_admin_test'
     app.config['SQLALCHEMY_ECHO'] = True
 
     db = SQLAlchemy(app)
