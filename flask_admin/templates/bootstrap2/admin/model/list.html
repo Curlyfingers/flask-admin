@@ -128,6 +128,7 @@
                                     </a>
                                 {%- endif -%}
                             {%- endif -%}
+                            {{ admin_view.can_edit }}
                             {%- if admin_view.can_edit -%}
                                 {%- if admin_view.edit_modal -%}
                                     {{ lib.add_modal_button(url=get_url('.edit_view', id=get_pk_value(row), url=return_url, modal=True), title=_gettext('Edit Record'), content='<i class="fa fa-pencil icon-pencil"></i>') }}
