@@ -41,7 +41,6 @@ Examples
 Several usage examples are included in the */examples* folder. Please feel free to add your own examples, or improve
 on some of the existing ones, and then submit them via GitHub as a *pull-request*.
 
-You can see some of these examples in action at `http://examples.flask-admin.org <http://examples.flask-admin.org/>`_.
 To run the examples on your local environment, one at a time, do something like::
 
     cd flask-admin
@@ -49,7 +48,7 @@ To run the examples on your local environment, one at a time, do something like:
 
 Documentation
 -------------
-Flask-Admin is extensively documented, you can find all of the documentation at `http://flask-admin.readthedocs.org/en/latest/ <http://flask-admin.readthedocs.org/en/latest/>`_.
+Flask-Admin is extensively documented, you can find all of the documentation at `https://flask-admin.readthedocs.io/en/latest/ <https://flask-admin.readthedocs.io/en/latest/>`_.
 
 The docs are auto-generated from the *.rst* files in the */doc* folder. So if you come across any errors, or
 if you think of anything else that should be included, then please make the changes and submit them as a *pull-request*.
@@ -75,7 +74,7 @@ Or alternatively, you can download the repository and install manually by doing:
 
 Tests
 -----
-Test are run with *nose*. If you are not familiar with this package you can get some more info from `their website <http://nose.readthedocs.org/>`_.
+Test are run with *nose*. If you are not familiar with this package you can get some more info from `their website <https://nose.readthedocs.io/>`_.
 
 To run the tests, from the project directory, simply::
 
